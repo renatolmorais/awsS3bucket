@@ -227,7 +227,7 @@ if __name__ == '__main__':
 		if not os.path.exists(folder): os.mkdir(folder)
 		if not os.path.exists( os.path.join(folder,filename) + '.eml'):
 			with open( os.path.join(folder,filename) + '.eml','wb') as fp:
-				fp.write( get_object( file ).encode('latin1') )
+				fp.write( get_object( file ).encode( encoding ) )
 				n_files += 1
 				print '{filename} saved.'.format(filename=os.path.join(folder,filename))
 	if n_files > 0:	print 'saved {0} file(s)'.format(n_files)
