@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #encoding: UTF-8
 
 import sys,os
@@ -8,6 +9,7 @@ from urllib2 import quote as UriEncode
 from datetime import datetime
 import BeautifulSoup as bs
 import json
+from sendmail import sendmail
 
 from config import *
 
@@ -230,6 +232,7 @@ if __name__ == '__main__':
 				fp.write( get_object( file ).encode( encoding ) )
 				n_files += 1
 				print '{filename} saved.'.format(filename=os.path.join(folder,filename))
-	if n_files > 0:	print 'saved {0} file(s)'.format(n_files)
+	if n_files > 0: print 'saved {0} file(s)'.format(n_files)
+		#sendmail(recipient='renatolmorais@gmail.com',subject='Você tem {0} nova(s) mensagem(ns)!'.format(len(n_files)))	
 	else: print 'no file was saved'
 	#with open('filelist.json','w') as fp: json.dump(filelist,fp)
