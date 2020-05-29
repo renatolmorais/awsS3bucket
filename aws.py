@@ -119,11 +119,8 @@ def list_bucket():
 		region,
 		service,
 	)
-	#print 'SigningKey',SigningKey
 
-	#final_signature = hmac.new(SigningKey,StringToSign.encode('utf-8'),hashlib.sha256).hexdigest()
 	final_signature = sign(SigningKey,StringToSign,hex=True)
-	#print 'final_signature',final_signature
 
 	authorization_header = 'AWS4-HMAC-SHA256 Credential={access_key}/{scope}, SignedHeaders={SignedHeaders}, Signature={final_signature}'.format(
 		access_key=access_key,
@@ -137,9 +134,6 @@ def list_bucket():
 		'x-amz-content-sha256':hashlib.sha256(''.encode('utf-8')).hexdigest(),
 		'Authorization': authorization_header,
 	}
-
-	#print proto + host
-	#print http_header
 
 	resp = requests.get(request_url,headers = http_header)
 	page = bs.BeautifulSoup(resp.text)
@@ -172,7 +166,6 @@ def get_object(objname):
 	SignedHeaders=SignedHeaders,
 	HashedPayload=hashlib.sha256(''.encode('utf-8')).hexdigest(),
 	)
-	#print CanonicalRequest
 	
 	scope = '{datestamp}/{region}/{service}/aws4_request'.format(
 		datestamp=datestamp,
@@ -206,12 +199,10 @@ def get_object(objname):
 		'Authorization': authorization_header,
 	}
 	
-	#request_url = endpoint + '?' + CanonicalQueryString
 	request_url = endpoint + path
 	
 	resp = requests.get(request_url,headers = http_header)
 	return resp.text
-	#return resp
 
 if __name__ == '__main__':
 
@@ -221,7 +212,7 @@ if __name__ == '__main__':
 	
 	filelist = list_bucket()
 	print 'found {0} files'.format(len(filelist))
-	#get_object('compremeuap/AMAZON_SES_SETUP_NOTIFICATION')
+
 	n_files = 0
 	for filen in filelist:
 		if filen in current_list: continue
@@ -233,8 +224,7 @@ if __name__ == '__main__':
 				n_files += 1
 				print '{filename} saved.'.format(filename=os.path.join(folder,filename))
 	if n_files > 0:
-		print 'saved {0} file(s)'.format(n_files)
-		#sendmail(recipient='renatolmorais@gmail.com',subject='Você tem {0} nova(s) mensagem(ns)!'.format(n_files))	
+		print 'saved {0} file(s)'.format(n_files)	
 	else: print 'no file was saved'
 	new_filelist = {'filelist': filelist,'n_files':n_files}
 	with open( filelistname, 'w' ) as fp: json.dump(new_filelist,fp)
