@@ -215,24 +215,26 @@ def get_object(objname):
 
 if __name__ == '__main__':
 
-	#current_list = {}
-	#if os.path.exists( 'filelist.json' ): current_list = json.load( file('filelist.json') )
+	current_list = []
+	if os.path.exists( filelistname ): current_list = json.load( file(filelistname) ).get('filelist',[])
 	if main_folder != '': os.chdir( main_folder )
 	
 	filelist = list_bucket()
 	print 'found {0} files'.format(len(filelist))
 	#get_object('compremeuap/AMAZON_SES_SETUP_NOTIFICATION')
 	n_files = 0
-	for file in filelist:
-		#if file in current_list: continue
-		folder,filename = file.split('/')
-		if not os.path.exists(folder): os.mkdir(folder)
-		if not os.path.exists( os.path.join(folder,filename) + '.eml'):
-			with open( os.path.join(folder,filename) + '.eml','wb') as fp:
-				fp.write( get_object( file ).encode( encoding ) )
+	for filen in filelist:
+		if filen in current_list: continue
+		folder,filename = filen.split('/')
+		#if not os.path.exists(folder): os.mkdir(folder)
+		if not os.path.exists( filename  + '.eml'):
+			with open( filename + '.eml','wb') as fp:
+				fp.write( get_object( filen ).encode( encoding ) )
 				n_files += 1
 				print '{filename} saved.'.format(filename=os.path.join(folder,filename))
-	if n_files > 0: print 'saved {0} file(s)'.format(n_files)
-		#sendmail(recipient='renatolmorais@gmail.com',subject='Você tem {0} nova(s) mensagem(ns)!'.format(len(n_files)))	
+	if n_files > 0:
+		print 'saved {0} file(s)'.format(n_files)
+		#sendmail(recipient='renatolmorais@gmail.com',subject='Você tem {0} nova(s) mensagem(ns)!'.format(n_files))	
 	else: print 'no file was saved'
-	#with open('filelist.json','w') as fp: json.dump(filelist,fp)
+	new_filelist = {'filelist': filelist,'n_files':n_files}
+	with open( filelistname, 'w' ) as fp: json.dump(new_filelist,fp)
