@@ -9,7 +9,6 @@ from urllib2 import quote as UriEncode
 from datetime import datetime
 import BeautifulSoup as bs
 import json
-from sendmail import sendmail
 
 from config import *
 
