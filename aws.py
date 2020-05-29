@@ -225,5 +225,5 @@ if __name__ == '__main__':
 	if n_files > 0:
 		print 'saved {0} file(s)'.format(n_files)	
 	else: print 'no file was saved'
-	new_filelist = {'filelist': filelist,'n_files':n_files}
+	new_filelist = {'filelist': filelist,'n_files':len(filelist)}
 	with open( filelistname, 'w' ) as fp: json.dump(new_filelist,fp)
