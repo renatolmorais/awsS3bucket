@@ -14,6 +14,12 @@ from config import *
 
 endpoint = 'https://' + host
 
+def user_exists( username ):
+	for line in file( userdb ):
+		user = line.strip('\r\n').split(':')[0]
+		if user == username: return True
+	return False
+
 def build_canonical_query_string( kwargs ):
 	query = []
 	sorted_keys = sorted( kwargs.keys() )
@@ -207,7 +213,7 @@ if __name__ == '__main__':
 
 	current_list = []
 	if os.path.exists( filelistname ): current_list = json.load( file(filelistname) ).get('filelist',[])
-	if main_folder != '': os.chdir( main_folder )
+#	if main_folder != '': os.chdir( main_folder )
 	
 	filelist = list_bucket()
 	print 'found {0} files'.format(len(filelist))
@@ -215,13 +221,16 @@ if __name__ == '__main__':
 	n_files = 0
 	for filen in filelist:
 		if filen in current_list: continue
-		folder,filename = filen.split('/')
+		username,filename = filen.split('/')
+		if not user_exists( username ): continue
+		if maildir.format( username=username ) != '' and os.path.exists( maildir.format( username=username ) ): os.chdir( maildir.format( username=username ) )
+		else: continue
 		#if not os.path.exists(folder): os.mkdir(folder)
 		if not os.path.exists( filename  + '.eml'):
 			with open( filename + '.eml','wb') as fp:
 				fp.write( get_object( filen ).encode( encoding ) )
 				n_files += 1
-				print '{filename} saved.'.format(filename=os.path.join(folder,filename))
+				print '{filename} saved in {folder}.'.format(filename=filename,folder=maildir.format( username=username ))
 	if n_files > 0:
 		print 'saved {0} file(s)'.format(n_files)	
 	else: print 'no file was saved'
