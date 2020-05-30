@@ -9,10 +9,9 @@ from urllib2 import quote as UriEncode
 from datetime import datetime
 import BeautifulSoup as bs
 import json
+from random import sample as sp
 
 from config import *
-
-endpoint = 'https://' + host
 
 def user_exists( username ):
 	for line in file( userdb ):
@@ -52,31 +51,31 @@ def getSignatureKey(key, dateStamp, regionName, serviceName):
 	
 def get_timestamps():
 	current_time = datetime.utcnow()
-	return current_time.strftime("%Y%m%d"),current_time.strftime("%Y%m%dT%H%M%SZ")
+	return (current_time.strftime("%Y%m%d"),current_time.strftime("%Y%m%dT%H%M%SZ"))
 
-def list_bucket():
-
-	path = '/'
-	query = {
-		'list-type':'2',
-	}
+def get_password():
+	passwd_chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789'
+	return sp(passwd_chars,16)
 	
-	datestamp,amzdate = get_timestamps()
+def build_authorization_header( host, datestamp='',amzdate='', path='/', query={}, service=''  ):
+	access_key = ''
+	secret_key = ''
+	if service == 's3':
+		access_key = s3_access_key
+		secret_key = s3_secret_key
+	elif service == 'iam':
+		access_key = iam_access_key
+		secret_key = iam_secret_key
 
 	HTTPMethod = 'GET'
 	CanonicalURI = UriEncode(path)
-	#print 'CanonicalURI',CanonicalURI
-
 	CanonicalQueryString = build_canonical_query_string( query )
-	#print 'CanonicalQueryString',CanonicalQueryString
-	request_url = endpoint + '?' + CanonicalQueryString
-
 	headers = {
 			'host':host,
 			'x-amz-content-sha256': hashlib.sha256(''.encode('utf-8')).hexdigest(),
 			'x-amz-date':amzdate,
 		}
-
+	
 	CanonicalHeaders = build_canonical_headers( headers )
 	#print 'CanonicalHeaders',CanonicalHeaders
 
@@ -133,12 +132,29 @@ def list_bucket():
 		SignedHeaders=SignedHeaders,
 		final_signature=final_signature,
 	)
+	
+	return authorization_header
+	
+def list_bucket():
+
+	host = s3_host
+	endpoint = 'https://' + host
+	path = '/'
+	query = {
+		'list-type':'2',
+	}
+	
+	datestamp,amzdate = get_timestamps()
+	authorization_header = build_authorization_header( host, datestamp, amzdate, path, query, service='s3' )
+	CanonicalQueryString = build_canonical_query_string( query )
 
 	http_header = {
 		'x-amz-date':amzdate,
 		'x-amz-content-sha256':hashlib.sha256(''.encode('utf-8')).hexdigest(),
 		'Authorization': authorization_header,
 	}
+	
+	request_url = endpoint + '?' + CanonicalQueryString
 
 	resp = requests.get(request_url,headers = http_header)
 	page = bs.BeautifulSoup(resp.text)
@@ -147,55 +163,15 @@ def list_bucket():
 	return [key.text for key in keys]
 
 def get_object(objname):
-	path = '/' + objname
+	host = s3_host
+	endpoint = 'https://' + host
+	path = '/'
+	
 	query = {}
+
 	datestamp,amzdate = get_timestamps()
-	headers = {
-			'host':host,
-			'x-amz-content-sha256': hashlib.sha256(''.encode('utf-8')).hexdigest(),
-			'x-amz-date':amzdate,
-		}
-	
+	authorization_header = build_authorization_header( host, datestamp, amzdate, path, query, service='s3' )
 	CanonicalQueryString = build_canonical_query_string( query )
-	SignedHeaders = build_signed_headers( headers )
-	
-	CanonicalRequest = '''GET
-{CanonicalURI}
-{CanonicalQueryString}
-{CanonicalHeaders}
-{SignedHeaders}
-{HashedPayload}'''.format(
-	CanonicalURI=UriEncode(path),
-	CanonicalQueryString=CanonicalQueryString,
-	CanonicalHeaders=build_canonical_headers( headers ),
-	SignedHeaders=SignedHeaders,
-	HashedPayload=hashlib.sha256(''.encode('utf-8')).hexdigest(),
-	)
-	
-	scope = '{datestamp}/{region}/{service}/aws4_request'.format(
-		datestamp=datestamp,
-		region=region,
-		service=service,
-	)
-	
-	StringToSign = '''AWS4-HMAC-SHA256
-{timestamp}
-{scope}
-{hash_CanonicalRequest}'''.format(
-		timestamp=amzdate,
-		scope=scope,
-		hash_CanonicalRequest=hashlib.sha256( CanonicalRequest.encode('utf-8') ).hexdigest()
-	)
-	
-	SigningKey = getSignatureKey( secret_key, datestamp, region, service )
-	final_signature = sign(SigningKey,StringToSign,hex=True)
-	
-	authorization_header = 'AWS4-HMAC-SHA256 Credential={access_key}/{scope}, SignedHeaders={SignedHeaders}, Signature={final_signature}'.format(
-		access_key=access_key,
-		scope=scope,
-		SignedHeaders=SignedHeaders,
-		final_signature=final_signature,
-	)
 	
 	http_header = {
 		'date':datestamp,
@@ -206,6 +182,116 @@ def get_object(objname):
 	
 	request_url = endpoint + path
 	
+	resp = requests.get(request_url,headers = http_header)
+	return resp.text
+
+def create_user( username ):
+	host = iam_host
+	endpoint = 'https://' + host
+	path = '/'
+	
+	query = {
+		'Action':'CreateUser',
+		'UserName':username,
+		'Version':iam_version,
+	}
+
+	datestamp,amzdate = get_timestamps()
+	authorization_header = build_authorization_header( host, datestamp, amzdate, path, query, service='iam' )
+	CanonicalQueryString = build_canonical_query_string( query )
+	
+	http_header = {
+		'date':datestamp,
+		'x-amz-date':amzdate,
+		'x-amz-content-sha256':hashlib.sha256(''.encode('utf-8')).hexdigest(),
+		'Authorization': authorization_header,
+	}
+	
+	request_url = endpoint + '?' + CanonicalQueryString
+	
+	resp = requests.get(request_url,headers = http_header)
+	user_text = resp.text
+	page = bs.BeautifulSoup(resp.text)
+	userid = page.find('userid').text
+	
+	# change user password
+	new_password = get_password()
+	query = {
+		'Action':'CreateLoginProfile',
+		'UserName':username,
+		'Password':new_password,
+		'Version':iam_version,
+	}
+	
+	datestamp,amzdate = get_timestamps()
+	authorization_header = build_authorization_header( host, datestamp, amzdate, path, query, service='iam' )
+	CanonicalQueryString = build_canonical_query_string( query )
+	http_header = {
+		'date':datestamp,
+		'x-amz-date':amzdate,
+		'x-amz-content-sha256':hashlib.sha256(''.encode('utf-8')).hexdigest(),
+		'Authorization': authorization_header,
+	}
+	
+	request_url = endpoint + '?' + CanonicalQueryString
+	resp = requests.get(request_url,headers = http_header)
+	
+	# create access key
+	query = {
+		'Action':'CreateAccessKey',
+		'UserName':username,
+		'Version':iam_version,
+	}
+	
+	datestamp,amzdate = get_timestamps()
+	authorization_header = build_authorization_header( host, datestamp, amzdate, path, query, service='iam' )
+	CanonicalQueryString = build_canonical_query_string( query )
+	http_header = {
+		'date':datestamp,
+		'x-amz-date':amzdate,
+		'x-amz-content-sha256':hashlib.sha256(''.encode('utf-8')).hexdigest(),
+		'Authorization': authorization_header,
+	}
+	request_url = endpoint + '?' + CanonicalQueryString
+	resp = requests.get(request_url,headers = http_header)
+	page = bs.BeautifulSoup(resp.text)
+	user_access_key = page.find('accesskeyid').text
+	user_secret_key = page.find('secretaccesskey').text
+
+	return userid,user_access_key,user_secret_key
+
+def put_user_policy( username ):
+	host = iam_host
+	endpoint = 'https://' + host
+	path = '/'
+	policy = {
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Sid": "VisualEditor0",
+				"Effect": "Allow",
+				"Action": "ses:SendEmail",
+				"Resource": "*"
+			}
+		]
+	}
+	query = {
+		'Action':'PutUserPolicy',
+		'UserName':username,
+		'PolicyName':'sendmail',
+		'PolicyDocument':json.dumps( policy ),
+		'Version':iam_version,
+	}
+	datestamp,amzdate = get_timestamps()
+	authorization_header = build_authorization_header( host, datestamp, amzdate, path, query, service='iam' )
+	CanonicalQueryString = build_canonical_query_string( query )
+	http_header = {
+		'date':datestamp,
+		'x-amz-date':amzdate,
+		'x-amz-content-sha256':hashlib.sha256(''.encode('utf-8')).hexdigest(),
+		'Authorization': authorization_header,
+	}
+	request_url = endpoint + '?' + CanonicalQueryString
 	resp = requests.get(request_url,headers = http_header)
 	return resp.text
 
