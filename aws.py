@@ -77,13 +77,10 @@ def build_authorization_header( host, datestamp='',amzdate='', path='/', query={
 		}
 	
 	CanonicalHeaders = build_canonical_headers( headers )
-	#print 'CanonicalHeaders',CanonicalHeaders
 
 	SignedHeaders = build_signed_headers( headers )
-	#print 'SignedHeaders',SignedHeaders
 
 	HashedPayload = hashlib.sha256(''.encode('utf-8')).hexdigest()
-	#print 'HashedPayload',HashedPayload
 
 	CanonicalRequest = '''GET
 {CanonicalURI}
@@ -97,14 +94,12 @@ def build_authorization_header( host, datestamp='',amzdate='', path='/', query={
 	SignedHeaders=SignedHeaders,
 	HashedPayload=HashedPayload,
 	)
-	#print CanonicalRequest
 
 	scope = '{datestamp}/{region}/{service}/aws4_request'.format(
 		datestamp=datestamp,
 		region=region,
 		service=service,
 	)
-	#print 'scope',scope
 
 	StringToSign = '''AWS4-HMAC-SHA256
 {timestamp}
@@ -114,7 +109,6 @@ def build_authorization_header( host, datestamp='',amzdate='', path='/', query={
 		scope=scope,
 		hash_CanonicalRequest=hashlib.sha256( CanonicalRequest.encode('utf-8') ).hexdigest()
 	)
-	#print 'StringToSign',StringToSign
 
 	#calculate signature
 	SigningKey = getSignatureKey(
@@ -135,7 +129,7 @@ def build_authorization_header( host, datestamp='',amzdate='', path='/', query={
 	
 	return authorization_header
 	
-def list_bucket():
+def list_bucket(info=False):
 
 	host = s3_host
 	endpoint = 'https://' + host
@@ -158,14 +152,13 @@ def list_bucket():
 
 	resp = requests.get(request_url,headers = http_header)
 	page = bs.BeautifulSoup(resp.text)
-
-	keys = page.findAll('key')
-	return [key.text for key in keys]
+	contents = page.findAll('contents')
+	return [(content.key.text,content.lastmodified.text) for content in contents]
 
 def get_object(objname):
 	host = s3_host
 	endpoint = 'https://' + host
-	path = '/'
+	path = '/' + objname
 	
 	query = {}
 
@@ -294,31 +287,3 @@ def put_user_policy( username ):
 	request_url = endpoint + '?' + CanonicalQueryString
 	resp = requests.get(request_url,headers = http_header)
 	return resp.text
-
-if __name__ == '__main__':
-
-	current_list = []
-	if os.path.exists( filelistname ): current_list = json.load( file(filelistname) ).get('filelist',[])
-#	if main_folder != '': os.chdir( main_folder )
-	
-	filelist = list_bucket()
-	print 'found {0} files'.format(len(filelist))
-
-	n_files = 0
-	for filen in filelist:
-		if filen in current_list: continue
-		username,filename = filen.split('/')
-		if not user_exists( username ): continue
-		if maildir.format( username=username ) != '' and os.path.exists( maildir.format( username=username ) ): os.chdir( maildir.format( username=username ) )
-		else: continue
-		#if not os.path.exists(folder): os.mkdir(folder)
-		if not os.path.exists( filename  + '.eml'):
-			with open( filename + '.eml','wb') as fp:
-				fp.write( get_object( filen ).encode( encoding ) )
-				n_files += 1
-				print '{filename} saved in {folder}.'.format(filename=filename,folder=maildir.format( username=username ))
-	if n_files > 0:
-		print 'saved {0} file(s)'.format(n_files)	
-	else: print 'no file was saved'
-	new_filelist = {'filelist': filelist,'n_files':len(filelist)}
-	with open( filelistname, 'w' ) as fp: json.dump(new_filelist,fp)

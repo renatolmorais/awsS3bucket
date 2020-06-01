@@ -1,6 +1,9 @@
+*.xml
 config.py
 *.pyc
 awsexample.py
 *.old
 *.json
 sendmail.py
+main.py
+aws_test.py
