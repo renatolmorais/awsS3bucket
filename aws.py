@@ -178,7 +178,7 @@ def get_object(objname):
 	resp = requests.get(request_url,headers = http_header)
 	return resp.text
 
-def create_user( username ):
+def create_new_user( username ):
 	host = iam_host
 	endpoint = 'https://' + host
 	path = '/'
@@ -206,7 +206,12 @@ def create_user( username ):
 	user_text = resp.text
 	page = bs.BeautifulSoup(resp.text)
 	userid = page.find('userid').text
+	return userid
 	
+def create_login_profile( username ):
+	host = iam_host
+	endpoint = 'https://' + host
+	path = '/'
 	# change user password
 	new_password = get_password()
 	query = {
@@ -228,7 +233,12 @@ def create_user( username ):
 	
 	request_url = endpoint + '?' + CanonicalQueryString
 	resp = requests.get(request_url,headers = http_header)
+	return new_password
 	
+def create_access_key( username ):
+	host = iam_host
+	endpoint = 'https://' + host
+	path = '/'
 	# create access key
 	query = {
 		'Action':'CreateAccessKey',
@@ -251,7 +261,13 @@ def create_user( username ):
 	user_access_key = page.find('accesskeyid').text
 	user_secret_key = page.find('secretaccesskey').text
 
-	return userid,user_access_key,user_secret_key
+	return user_access_key,user_secret_key
+
+def create_user( username ):
+	userid = create_new_user( username )
+	access_key,secret_key = create_access_key( username )
+	user_password = create_user_password( username )
+	return userid,access_key,secret_key,user_password
 
 def put_user_policy( username ):
 	host = iam_host
