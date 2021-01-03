@@ -5,19 +5,22 @@ import sys,os
 import hmac
 import hashlib
 import requests
-from urllib2 import quote as UriEncode
+#from urllib2 import quote as UriEncode
+from urllib.parse import quote as UriEncode
+#from urllib import quote as UriEncode
 from datetime import datetime
-import BeautifulSoup as bs
+from bs4 import BeautifulSoup as bs
 import json
 from random import sample as sp
 
 from config import *
 
 def user_exists( username ):
-	for line in file( userdb ):
-		user = line.strip('\r\n').split(':')[0]
-		if user == username: return True
-	return False
+	with open( userdb,'r' ) as fp:
+		for line in fp:
+			user = line.strip('\r\n').split(':')[0]
+			if user == username: return True
+		return False
 
 def build_canonical_query_string( kwargs ):
 	query = []
@@ -151,7 +154,7 @@ def list_bucket(info=False):
 	request_url = endpoint + '?' + CanonicalQueryString
 
 	resp = requests.get(request_url,headers = http_header)
-	page = bs.BeautifulSoup(resp.text)
+	page = bs(resp.text,features='html.parser')
 	contents = page.findAll('contents')
 	return [(content.key.text,content.lastmodified.text) for content in contents]
 
